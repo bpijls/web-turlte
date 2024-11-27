@@ -14,6 +14,7 @@ app.use(express.json());
 
 // Serve static assets (e.g., images for the client-side)
 app.use('/assets', express.static('assets'));
+app.use('/client', express.static('client'));
 
 // Handle GET request to update or create a turtle
 app.get('/api', (req, res) => {
