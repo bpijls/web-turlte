@@ -1,0 +1,17 @@
+name: turlte
+services:
+  app:
+    image: 'turlte'
+    build: .
+    ports:
+      - '8008:80'
+    volumes:
+      - ./client:/client
+    command: npm run start
+    networks:
+      - network1
+
+networks:
+    network1:
+      name: proxymanager_default
+      external: true

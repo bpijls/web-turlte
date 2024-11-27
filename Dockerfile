@@ -1,6 +1,7 @@
 # Use a base image with Node.js pre-installed
 FROM node:14
 
+
 # Set the working directory inside the container
 WORKDIR /
 
@@ -14,7 +15,9 @@ RUN npm install
 COPY . .
 
 # Expose the port your application listens on
-EXPOSE 0.0.0.0:8008
+EXPOSE 8008
+
+VOLUME ["/client"]
 
 # Command to run your application
 CMD ["node", "turlte-server.js"]
