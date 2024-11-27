@@ -1,12 +1,14 @@
 // Basic server-side code using Node.js and Express to handle HTTP requests, Server-Side Events (SSE), and manage turtle states
 
 const express = require('express');
+
 const app = express();
 const port = 8008;
 
 // Store turtles based on client IP or session
 let turtles = {};
 let clients = [];
+
 
 // Middleware to parse incoming request parameters
 app.use(express.urlencoded({ extended: true }));

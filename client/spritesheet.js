@@ -20,9 +20,6 @@ class SpriteSheet {
             this.ny = Math.ceil(this.nFrames / this.nx);
             this.frameWidth = this.sourceImage.width / this.nx;
             this.frameHeight = this.sourceImage.height / this.ny;
-
-            console.log(this.sourceImage);
-            console.log(this);
         } else {
             throw new Error("Invalid filename format. Expected format: 'name@XnNn.png'");
         }
