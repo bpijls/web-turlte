@@ -4,12 +4,12 @@
     "description": "Server and client application for managing turtles via HTTP and SSE",
     "main": "turlte-server.js",
     "scripts": {
-      "start": "node turlte-server.js"
+        "start": "node turlte-server.js"
     },
     "dependencies": {
-      "express": "^4.18.2"
+        "express": "^4.18.2",
+        "serve-favicon": "^2.5.0"
     },
-    "devDependencies": {},
     "author": "",
     "license": "ISC"
-  }
+}
