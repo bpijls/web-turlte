@@ -14,7 +14,7 @@ function setup() {
     currentTurtle = new Turtle("default");
 
     // Set up Server-Side Events (SSE)
-    const eventSource = new EventSource('http://localhost:8008/events');
+    const eventSource = new EventSource(`http://${location.hostname}/events`);
     eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
         if (data) {

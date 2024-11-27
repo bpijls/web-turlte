@@ -86,8 +86,8 @@ class Turtle {
       rotate(-this.angle);
       strokeWeight(1);
       stroke(255);
-
-      text(this.name, -textWidth(this.name) / 2, -20);
+	fill(255);
+      text(this.name, -textWidth(this.name) / 2, -40);
       pop();
     }
   }
