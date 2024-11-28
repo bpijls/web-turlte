@@ -18,9 +18,10 @@ app.use(express.json());
 app.use('/assets', express.static('assets'));
 app.use('/client', express.static('client'));
 
-// Handle GET request to update or create a turtle
+    // Handle GET request to update or create a turtle
 app.get('/api', (req, res) => {
-    const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const clientIp = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.connection.remoteAddress;
+  
 
 
     // If no parameters are provided, display a help page
