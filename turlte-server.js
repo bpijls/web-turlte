@@ -4,6 +4,7 @@ const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
 const os = require('os');
+const { body, validationResult } = require('express-validator'); // Import express-validator
 
 
 const app = express();
@@ -32,8 +33,8 @@ app.get('/api', (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     // use a regex to get the substring that is the IP address
-    clientIp = clientIp.match(/\d+\.\d+\.\d+\.\d+/)[0]; 
-    
+    clientIp = clientIp.match(/\d+\.\d+\.\d+\.\d+/)[0];
+
     // If no parameters are provided, display a help page
     if (Object.keys(req.query).length === 0) {
         showHelpMessage(res);
@@ -71,50 +72,65 @@ app.get('/api', (req, res) => {
 
 
 // Handle POST request to update or create a turtle
-app.post('/api', upload.none(), (req, res) => {
-    
-    const clientIp = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress;
-    res.setHeader('Access-Control-Allow-Origin', '*');
+app.post('/api', upload.none(),
+    // Validation and sanitization with express-validator
+    [
+        body('name').escape(), // Sanitize the name to prevent XSS
+        body('x').isInt().toInt().optional(), // Validate and sanitize x
+        body('y').isInt().toInt().optional(), // Validate and sanitize y
+        body('r').isInt({ min: 0, max: 255 }).toInt().optional(), // Validate color value
+        body('g').isInt({ min: 0, max: 255 }).toInt().optional(), // Validate color value
+        body('b').isInt({ min: 0, max: 255 }).toInt().optional(), // Validate color value
+        body('w').isInt({ min: 1, max: 200 }).toInt().optional(), // Validate line width
+    ],
+    (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+          return res.status(400).json({ errors: errors.array() });
+        }
+        
+        const clientIp = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress;
+        res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // If no parameters are provided, display a help page
-    if (Object.keys(req.body).length === 0) {
-        showHelpMessage(res);
-        return;
-    }
+        // If no parameters are provided, display a help page
+        if (Object.keys(req.body).length === 0) {
+            showHelpMessage(res);
+            return;
+        }
 
-    if (!turtles[clientIp]) {
-        turtles[clientIp] = {
-            name: clientIp,
-            x: 0,
-            y: 0,
-            r: 255,
-            g: 255,
-            b: 255,
-            w: 3,
-            method: 'POST',
-            commands: {}
-        };
-    }
+        if (!turtles[clientIp]) {
+            turtles[clientIp] = {
+                name: clientIp,
+                x: 0,
+                y: 0,
+                r: 255,
+                g: 255,
+                b: 255,
+                w: 3,
+                method: 'POST',
+                commands: {}
+            };
+        }
 
-    const turtle = turtles[clientIp];
+        const turtle = turtles[clientIp];
 
-    // Update turtle parameters from POST body
-    if (req.body.x) turtle.x = parseInt(req.body.x);
-    if (req.body.y) turtle.y = parseInt(req.body.y);
-    if (req.body.r) turtle.r = parseInt(req.body.r);
-    if (req.body.g) turtle.g = parseInt(req.body.g);
-    if (req.body.b) turtle.b = parseInt(req.body.b);
-    if (req.body.w) turtle.w = parseInt(req.body.w);
-    if (req.body.name) turtle.name = req.body.name;
+        // Update turtle parameters from POST body
+        if (req.body.x) turtle.x = parseInt(req.body.x);
+        if (req.body.y) turtle.y = parseInt(req.body.y);
+        if (req.body.r) turtle.r = parseInt(req.body.r);
+        if (req.body.g) turtle.g = parseInt(req.body.g);
+        if (req.body.b) turtle.b = parseInt(req.body.b);
+        if (req.body.w) turtle.w = parseInt(req.body.w);
+        if (req.body.name) turtle.name = req.body.name;
 
-    res.json({
-        message: 'Turtle updated via POST',
-        turtle: turtle
+        res.json({
+            message: 'Turtle updated via POST',
+            turtle: turtle
+        });
+
+        // Notify all connected clients of the update
+        clients.forEach(client => client.write(`data: ${JSON.stringify(turtle)}\n\n`));
     });
-
-    // Notify all connected clients of the update
-    clients.forEach(client => client.write(`data: ${JSON.stringify(turtle)}\n\n`));
-});
 
 // Handle opening links in a new tab
 app.get('/open', (req, res) => {
@@ -158,7 +174,7 @@ app.use((req, res) => {
 
 
 // Handle invalid routes
-function showHelpMessage(res) {    
+function showHelpMessage(res) {
     res.send(`
         <h1>Turtle Graphics API</h1>
         <p>Use the following query parameters to control your turtle:</p>
