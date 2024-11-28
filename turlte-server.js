@@ -88,7 +88,7 @@ app.post('/api', upload.none(),
         if (!errors.isEmpty()) {
           return res.status(400).json({ errors: errors.array() });
         }
-        
+
         const clientIp = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress;
         res.setHeader('Access-Control-Allow-Origin', '*');
 
@@ -187,7 +187,7 @@ function showHelpMessage(res) {
         <li><b>w</b>: Set the line weight (POST only) (e.g., w=5)</li>
         <li><b>name</b>: Set the name of the turtle (POST only) (e.g., name=Speedy)</li>
         </ul>
-        <p>Example: <code>http://${hostname}:${port}/api/?x=100&y=200</code></p>
+        <p>Example: <code>http://turlte.nl/api/?x=400&y=300</code></p>
         <br>
         <p>For a real-time turtle graphics demo, visit the <a href="/client" target="_blank">Turtle Graphics Client</a>.</p>
         
