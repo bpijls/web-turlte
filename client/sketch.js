@@ -3,6 +3,7 @@
 let turtles = {};
 let currentTurtle;
 let assetManager;
+let statusIcons = {"GET": "", "POST": "👑"};
 
 function preload() {
     assetManager = new AssetManager();
@@ -26,6 +27,7 @@ function setup() {
             turtle.lineColor = color(data.r, data.g, data.b);
             turtle.lineWeight = data.w;
             turtle.name = data.name;
+            turtle.status = statusIcons[data.method];
         }
     };
 }
