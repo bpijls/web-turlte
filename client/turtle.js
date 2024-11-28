@@ -40,6 +40,7 @@ class Turtle {
         }
 
         if (this.t > 1.0) {
+            this.position = this.endPosition.copy();
             this.t = 0;
             this.moving = false;
             this.lines.push(new LineSegment(this.startPosition, this.endPosition, this.lineColor, this.lineWeight));
