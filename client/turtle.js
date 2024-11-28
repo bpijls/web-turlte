@@ -90,7 +90,7 @@ class Turtle {
         text(this.status, -textWidth(this.status) / 2, -30);
         rotate(-this.angle);
         strokeWeight(1);
-        stroke(255);
+        noStroke();
         fill(255);
         textSize(12);
         text(this.name, -textWidth(this.name) / 2, 45);        
