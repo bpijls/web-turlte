@@ -5,6 +5,7 @@ const multer = require('multer');
 const cors = require('cors');
 const os = require('os');
 const { body, validationResult } = require('express-validator'); // Import express-validator
+const { time } = require('console');
 
 
 const app = express();
@@ -32,9 +33,6 @@ app.get('/api', (req, res) => {
     let clientIp = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress;
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // use a regex to get the substring that is the IP address
-    clientIp = clientIp.match(/\d+\.\d+\.\d+\.\d+/)[0];
-
     // If no parameters are provided, display a help page
     if (Object.keys(req.query).length === 0) {
         showHelpMessage(res);
@@ -50,13 +48,16 @@ app.get('/api', (req, res) => {
             g: 255,
             b: 255,
             w: 3,
+            clientIp: clientIp,
             method: 'GET',
+            timestamp: Math.floor(Date.now() / 1000),
             commands: {}
         };
     }
 
     const turtle = turtles[clientIp];
 
+    console.log(turtles);
     // Update turtle parameters from GET query
     if (req.query.x) turtle.x = parseInt(req.query.x);
     if (req.query.y) turtle.y = parseInt(req.query.y);
@@ -107,6 +108,9 @@ app.post('/api', upload.none(),
                 g: 255,
                 b: 255,
                 w: 3,
+                clientIp: clientIp,
+                // timestamp in seconds
+                timestamp: Math.floor(Date.now() / 1000),
                 method: 'POST',
                 commands: {}
             };
@@ -132,6 +136,13 @@ app.post('/api', upload.none(),
         clients.forEach(client => client.write(`data: ${JSON.stringify(turtle)}\n\n`));
     });
 
+    // handle get request to get all turtles. Allow to filter by timestamp. Default to one hour before now
+    app.get('/turtles', (req, res) => {
+        const timestamp = req.query.timestamp ? parseInt(req.query.timestamp) : Math.floor(Date.now() / 1000) - 3600;
+        const filteredTurtles = Object.values(turtles).filter(turtle => turtle.timestamp >= timestamp);
+        res.json(filteredTurtles);
+    });
+    
 // Handle opening links in a new tab
 app.get('/open', (req, res) => {
     const url = req.query.url;
