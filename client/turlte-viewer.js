@@ -1,5 +1,4 @@
 // Assuming that the server-side logic is managed by a Node.js server, here is a port of the client-side code to p5.js with a similar structure:
-
 let turtles = {};
 let currentTurtle;
 let assetManager;
