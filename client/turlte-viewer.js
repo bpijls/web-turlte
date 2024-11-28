@@ -13,10 +13,30 @@ function setup() {
     createCanvas(windowWidth, windowHeight);
     currentTurtle = new Turtle("default");
 
+    // fetch the existig turtles
+    fetch(`http://${location.hostname}:${location.port}/turtles`)
+        .then(response => response.json())
+        .then(data => {
+            for (let key in data) {
+                let turtle = data[key];   
+                console.log(turtle);             
+                turtles[turtle.clientIp] = new Turtle(turtle.clientIp);
+                turtles[turtle.clientIp].moveTo(createVector(turtle.x, turtle.y));
+                turtles[turtle.clientIp].lineColor = color(turtle.r, turtle.g, turtle.b);
+                turtles[turtle.clientIp].lineWeight = turtle.w;
+                turtles[turtle.clientIp].name = turtle.name;
+                turtles[turtle.clientIp].status = statusIcons[turtle.method];
+                
+            }
+            
+        });
+
     // Set up Server-Side Events (SSE)
     const eventSource = new EventSource(`http://${location.hostname}:${location.port}/events`);
     eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
+        console.log(data);
+        console.log(turtles);
         if (data) {
             if (!turtles[data.clientIp]) {
                 turtles[data.clientIp] = new Turtle(data.clientIp);
