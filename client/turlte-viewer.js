@@ -60,18 +60,3 @@ function draw() {
         turtle.draw();
     }
 }
-
-function mousePressed() {
-    if (mouseButton === LEFT && currentTurtle) {
-        currentTurtle.moveTo(createVector(mouseX, mouseY));
-    } else if (mouseButton === RIGHT && currentTurtle) {
-        currentTurtle.lineColor = color(random(255), random(255), random(255));
-        currentTurtle.lineWeight = random(2, 20);
-    }
-}
-
-function keyPressed() {
-    if (key === ' ') {
-        turtles = {};
-    }
-}
