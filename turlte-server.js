@@ -1,213 +1,161 @@
-// Basic server-side code using Node.js and Express to handle HTTP requests, Server-Side Events (SSE), and manage turtle states
-
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
 const os = require('os');
-const { body, validationResult } = require('express-validator'); // Import express-validator
-const { time } = require('console');
-
-
+const { body, validationResult } = require('express-validator');
 const app = express();
 const port = 8008;
 const hostname = os.hostname();
-
-app.use(cors());
-// Middleware to parse incoming request parameters
-app.use(express.urlencoded({ extended: true })); // To parse URL-encoded data
-app.use(express.json()); // To parse JSON data
-// Configure multer for multipart form-data
 const upload = multer();
 
-// Store turtles based on client IP or session
-let turtles = {};
-let clients = [];
-
-// Serve static assets (e.g., images for the client-side)
+app.use(cors());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 app.use('/assets', express.static('assets'));
 app.use('/client', express.static('client'));
 
+let turtles = {};
+let clients = [];
 
-// Handle GET request to update or create a turtle
-app.get('/api', (req, res) => {
-    let clientIp = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress;
-    res.setHeader('Access-Control-Allow-Origin', '*');
+// Middleware to get client IP
+function getClientIp(req, res, next) {
+  req.clientIp = req.headers['x-forwarded-for'] 
+    ? req.headers['x-forwarded-for'].split(',')[0].trim() 
+    : req.socket.remoteAddress;
+  next();
+}
 
-    // If no parameters are provided, display a help page
-    if (Object.keys(req.query).length === 0) {
-        showHelpMessage(res);
-        return;
-    }
+// Middleware to initialize turtle if not already present
+function initializeTurtle(req, res, next) {
+  if (!turtles[req.clientIp]) {
+    turtles[req.clientIp] = {
+      name: req.clientIp,
+      x: 0,
+      y: 0,
+      r: 255,
+      g: 255,
+      b: 255,
+      w: 3,
+      clientIp: req.clientIp,
+      timestamp: Math.floor(Date.now() / 1000),
+      method: req.method,
+      commands: {}
+    };
+  }
+  req.turtle = turtles[req.clientIp];
+  next();
+}
 
-    if (!turtles[clientIp]) {
-        turtles[clientIp] = {
-            name: clientIp,
-            x: 0,
-            y: 0,
-            r: 255,
-            g: 255,
-            b: 255,
-            w: 3,
-            clientIp: clientIp,
-            method: 'GET',
-            timestamp: Math.floor(Date.now() / 1000),
-            commands: {}
-        };
-    }
+// Validation and sanitization middleware
+const turtleValidation = [
+  body('name').escape().optional(),
+  body('x').isInt().toInt().optional(),
+  body('y').isInt().toInt().optional(),
+  body('r').isInt({ min: 0, max: 255 }).toInt().optional(),
+  body('g').isInt({ min: 0, max: 255 }).toInt().optional(),
+  body('b').isInt({ min: 0, max: 255 }).toInt().optional(),
+  body('w').isInt({ min: 1, max: 200 }).toInt().optional(),
+];
 
-    const turtle = turtles[clientIp];
+// Function to update turtle parameters
+function updateTurtleParams(turtle, params) {
+  if (params.x !== undefined) turtle.x = params.x;
+  if (params.y !== undefined) turtle.y = params.y;
+  if (params.r !== undefined) turtle.r = params.r;
+  if (params.g !== undefined) turtle.g = params.g;
+  if (params.b !== undefined) turtle.b = params.b;
+  if (params.w !== undefined) turtle.w = params.w;
+  if (params.name) turtle.name = params.name;
 
-    console.log(turtles);
-    // Update turtle parameters from GET query
-    if (req.query.x) turtle.x = parseInt(req.query.x);
-    if (req.query.y) turtle.y = parseInt(req.query.y);
+  turtle.timestamp = Math.floor(Date.now() / 1000); // Update timestamp
+}
 
-    res.json({
-        message: 'Turtle updated via GET',
-        turtle: turtle
-    });
+// Route to display help message
+function showHelpMessage(res) {
+  res.send(`
+    <h1>Turtle Graphics API</h1>
+    <p>Use the following query parameters to control your turtle:</p>
+    <ul>
+      <li><b>x</b>: Set the x-coordinate of the turtle (GET or POST) (e.g., ?x=100)</li>
+      <li><b>y</b>: Set the y-coordinate of the turtle (GET or POST) (e.g., ?y=200)</li>
+      <li><b>r</b>: Set the red component of the line color (0-255) (POST only) (e.g., r=255)</li>
+      <li><b>g</b>: Set the green component of the line color (0-255) (POST only) (e.g., g=100)</li>
+      <li><b>b</b>: Set the blue component of the line color (0-255) (POST only) (e.g., b=50)</li>
+      <li><b>w</b>: Set the line weight (POST only) (e.g., w=5)</li>
+      <li><b>name</b>: Set the name of the turtle (POST only) (e.g., name=Speedy)</li>
+    </ul>
+    <p>Example: <code>http://turlte.nl/api/?x=400&y=300</code></p>
+    <br>
+    <p>For a real-time turtle graphics demo, visit the <a href="/client" target="_blank">Turtle Graphics Client</a>.</p>
+    
+    <iframe src="/client" width="100%" height="600px" style="border:none;"></iframe>
+  `);
+}
 
-    // Notify all connected clients of the update
-    clients.forEach(client => client.write(`data: ${JSON.stringify(turtle)}\n\n`));
+// Route to handle GET request to update or create a turtle
+app.get('/api', getClientIp, initializeTurtle, (req, res) => {
+  if (Object.keys(req.query).length === 0) {
+    showHelpMessage(res);
+    return;
+  }
+
+  updateTurtleParams(req.turtle, req.query);
+  res.json({
+    message: 'Turtle updated via GET',
+    turtle: req.turtle
+  });
+
+  clients.forEach(client => client.write(`data: ${JSON.stringify(req.turtle)}\n\n`));
 });
 
+// Route to handle POST request to update or create a turtle
+app.post('/api', getClientIp, upload.none(), turtleValidation, initializeTurtle, (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
 
-// Handle POST request to update or create a turtle
-app.post('/api', upload.none(),
-    // Validation and sanitization with express-validator
-    [
-        body('name').escape(), // Sanitize the name to prevent XSS
-        body('x').isInt().toInt().optional(), // Validate and sanitize x
-        body('y').isInt().toInt().optional(), // Validate and sanitize y
-        body('r').isInt({ min: 0, max: 255 }).toInt().optional(), // Validate color value
-        body('g').isInt({ min: 0, max: 255 }).toInt().optional(), // Validate color value
-        body('b').isInt({ min: 0, max: 255 }).toInt().optional(), // Validate color value
-        body('w').isInt({ min: 1, max: 200 }).toInt().optional(), // Validate line width
-    ],
-    (req, res) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-          return res.status(400).json({ errors: errors.array() });
-        }
+  if (Object.keys(req.body).length === 0) {
+    showHelpMessage(res);
+    return;
+  }
 
-        const clientIp = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress;
-        res.setHeader('Access-Control-Allow-Origin', '*');
+  updateTurtleParams(req.turtle, req.body);
+  res.json({
+    message: 'Turtle updated via POST',
+    turtle: req.turtle
+  });
 
-        // If no parameters are provided, display a help page
-        if (Object.keys(req.body).length === 0) {
-            showHelpMessage(res);
-            return;
-        }
+  clients.forEach(client => client.write(`data: ${JSON.stringify(req.turtle)}\n\n`));
+});
 
-        if (!turtles[clientIp]) {
-            turtles[clientIp] = {
-                name: clientIp,
-                x: 0,
-                y: 0,
-                r: 255,
-                g: 255,
-                b: 255,
-                w: 3,
-                clientIp: clientIp,
-                // timestamp in seconds
-                timestamp: Math.floor(Date.now() / 1000),
-                method: 'POST',
-                commands: {}
-            };
-        }
-
-        const turtle = turtles[clientIp];
-
-        // Update turtle parameters from POST body
-        if (req.body.x) turtle.x = parseInt(req.body.x);
-        if (req.body.y) turtle.y = parseInt(req.body.y);
-        if (req.body.r) turtle.r = parseInt(req.body.r);
-        if (req.body.g) turtle.g = parseInt(req.body.g);
-        if (req.body.b) turtle.b = parseInt(req.body.b);
-        if (req.body.w) turtle.w = parseInt(req.body.w);
-        if (req.body.name) turtle.name = req.body.name;
-
-        res.json({
-            message: 'Turtle updated via POST',
-            turtle: turtle
-        });
-
-        // Notify all connected clients of the update
-        clients.forEach(client => client.write(`data: ${JSON.stringify(turtle)}\n\n`));
-    });
-
-    // handle get request to get all turtles. Allow to filter by timestamp. Default to one hour before now
-    app.get('/turtles', (req, res) => {
-        const timestamp = req.query.timestamp ? parseInt(req.query.timestamp) : Math.floor(Date.now() / 1000) - 3600;
-        const filteredTurtles = Object.values(turtles).filter(turtle => turtle.timestamp >= timestamp);
-        res.json(filteredTurtles);
-    });
-    
-// Handle opening links in a new tab
-app.get('/open', (req, res) => {
-    const url = req.query.url;
-    if (url) {
-        res.send(`
-            <html>
-                <body>
-                    <script>
-                        window.open('${url}', '_blank');
-                        window.location.href = '/';
-                    </script>
-                </body>
-            </html>
-        `);
-    } else {
-        res.status(400).send('URL parameter is missing');
-    }
+// Route to get all turtles, filtered by timestamp
+app.get('/turtles', (req, res) => {
+  const timestamp = req.query.timestamp ? parseInt(req.query.timestamp) : Math.floor(Date.now() / 1000) - 3600;
+  const filteredTurtles = Object.values(turtles).filter(turtle => turtle.timestamp >= timestamp);
+  res.json(filteredTurtles);
 });
 
 // Handle SSE connection
 app.get('/events', (req, res) => {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // Push this client to the clients array
-    clients.push(res);
+  clients.push(res);
 
-    // Remove client when connection closes
-    req.on('close', () => {
-        clients = clients.filter(client => client !== res);
-    });
+  req.on('close', () => {
+    clients = clients.filter(client => client !== res);
+  });
 });
 
-// Make any other route display the help message
+// Handle other routes with help message
 app.use((req, res) => {
-    showHelpMessage(res);
+  showHelpMessage(res);
 });
-
-
-// Handle invalid routes
-function showHelpMessage(res) {
-    res.send(`
-        <h1>Turtle Graphics API</h1>
-        <p>Use the following query parameters to control your turtle:</p>
-        <ul>
-        <li><b>x</b>: Set the x-coordinate of the turtle (GET or POST) (e.g., ?x=100)</li>
-        <li><b>y</b>: Set the y-coordinate of the turtle (GET or POST) (e.g., ?y=200)</li>
-        <li><b>r</b>: Set the red component of the line color (0-255) (POST only) (e.g., r=255)</li>
-        <li><b>g</b>: Set the green component of the line color (0-255) (POST only) (e.g., g=100)</li>
-        <li><b>b</b>: Set the blue component of the line color (0-255) (POST only) (e.g., b=50)</li>
-        <li><b>w</b>: Set the line weight (POST only) (e.g., w=5)</li>
-        <li><b>name</b>: Set the name of the turtle (POST only) (e.g., name=Speedy)</li>
-        </ul>
-        <p>Example: <code>http://turlte.nl/api/?x=400&y=300</code></p>
-        <br>
-        <p>For a real-time turtle graphics demo, visit the <a href="/client" target="_blank">Turtle Graphics Client</a>.</p>
-        
-        <iframe src="/client" width="100%" height="600px" style="border:none;"></iframe>
-    `);
-}
-
 
 // Start the server
 app.listen(port, () => {
-    console.log(`Server is running at >http://${hostname}:${port}`);
+  console.log(`Server is running at http://${hostname}:${port}`);
 });
