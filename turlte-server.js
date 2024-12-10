@@ -114,6 +114,13 @@ function showHelpMessage(res) {
       <li><b>w</b>: Set the line weight (POST only) (e.g., w=5)</li>
       <li><b>name</b>: Set the name of the turtle (POST only) (e.g., name=Speedy)</li>
     </ul>
+
+    <p>For <code>POST</code> requests use one of the following content types:</p>
+    <ul>
+    <li><code>Content type: application/json </code> </li>
+    <li><code>Content type:  application/x-www-form-urlencoded </li>
+    </ul>
+</code> </p>
     <p>Example: <code>http://turlte.nl/api/?x=400&y=300</code></p>
     <br>
     <p>For a real-time turtle graphics demo, visit the <a href="/client" target="_blank">Turtle Graphics Client</a>.</p>
@@ -164,6 +171,11 @@ app.get('/turtles', (req, res) => {
   const timestamp = req.query.timestamp ? parseInt(req.query.timestamp) : Math.floor(Date.now() / 1000) - 3600;
   const filteredTurtles = Object.values(turtles).filter(turtle => turtle.timestamp >= timestamp);
   res.json(filteredTurtles);
+});
+
+app.get('/kill-em-all', (req, res) => {
+  turtles = {};
+  res.json({ message: 'Turtles killed' });
 });
 
 // Handle SSE connection
