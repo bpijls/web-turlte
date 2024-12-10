@@ -175,7 +175,9 @@ app.get('/turtles', (req, res) => {
 
 app.get('/kill-em-all', (req, res) => {
   turtles = {};
-  res.json({ message: 'Turtles killed' });
+  res.json({ message: 'Turtles killed' });    
+  // Notify all clients
+    clients.forEach(client => client.write('data: {}\n\n'));
 });
 
 // Handle SSE connection
