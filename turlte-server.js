@@ -3,6 +3,9 @@ const multer = require('multer');
 const cors = require('cors');
 const os = require('os');
 const { body, validationResult } = require('express-validator');
+const ipRangeCheck = require('ip-range-check');
+
+
 const app = express();
 const port = 8008;
 const hostname = os.hostname();
@@ -13,10 +16,37 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use('/assets', express.static('assets'));
 app.use('/client', express.static('client'));
+app.use(blockIpMiddleware);
 
 let turtles = {};
 let clients = [];
 
+
+// List of IP ranges to block
+const blockedIpRanges = [
+    '66.249.64.0/19', // Example Google-owned IP range
+    '72.14.192.0/18',
+    '74.125.0.0/16',
+    '173.194.0.0/16',
+    '207.126.144.0/20',
+    '216.239.32.0/19'
+  ];
+
+  // Middleware to filter out blocked IPs
+function blockIpMiddleware(req, res, next) {
+    const clientIp = req.headers['x-forwarded-for']
+      ? req.headers['x-forwarded-for'].split(',')[0].trim()
+      : req.socket.remoteAddress;
+  
+    // Check if the client IP is in any of the blocked ranges
+    if (ipRangeCheck(clientIp, blockedIpRanges)) {
+      console.log(`Blocked request from IP: ${clientIp}`);
+      return res.status(403).json({ error: 'Access denied' });
+    }
+  
+    next();
+  }
+  
 // Middleware to get client IP
 function getClientIp(req, res, next) {
   req.clientIp = req.headers['x-forwarded-for'] 
